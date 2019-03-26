@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-application: your-app-id
-version: v1
+#application: your-app-id
+#version: v1
 runtime: go
 api_version: go1
 

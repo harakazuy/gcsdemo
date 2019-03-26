@@ -21,9 +21,15 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+	//"io/ioutil"
 	"net/http"
 	"strings"
+	"image"
+	"image/gif"
+	"image/jpeg"
+	"image/png"
+
+	"github.com/nfnt/resize"
 
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
@@ -96,7 +102,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		bucketName: bucket,
 	}
 
-	n := "demo-testfile-go"
+	/*n := "demo-testfile-go"
 	d.createFile(n)
 	d.readFile(n)
 	d.copyFile(n)
@@ -113,7 +119,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	d.acl(n)
 	d.putACLRule(n)
 	d.deleteACLRule(n)
-	d.deleteFiles()
+	d.deleteFiles()*/
+	d.minimize()
 
 	if d.failed {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -128,7 +135,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 //[START write]
 // createFile creates a file in Google Cloud Storage.
-func (d *demo) createFile(fileName string) {
+/*func (d *demo) createFile(fileName string) {
 	fmt.Fprintf(d.w, "Creating file /%v/%v\n", d.bucketName, fileName)
 
 	wc := d.bucket.Object(fileName).NewWriter(d.ctx)
@@ -244,7 +251,7 @@ func (d *demo) createListFiles() {
 func (d *demo) listBucket() {
 	io.WriteString(d.w, "\nListbucket result:\n")
 
-	query := &storage.Query{Prefix: "foo"}
+	query := &storage.Query{Prefix: ""}
 	it := d.bucket.Objects(d.ctx, query)
 	for {
 		obj, err := it.Next()
@@ -287,10 +294,67 @@ func (d *demo) listDir(name, indent string) {
 func (d *demo) listBucketDirMode() {
 	io.WriteString(d.w, "\nListbucket directory mode result:\n")
 	d.listDir("b", "")
+}*/
+
+// TODO:
+func (d *demo) minimize() {
+	dir := "uploadedByUser/"
+	suf := "_min"
+	query := &storage.Query{Prefix: ""}
+	it := d.bucket.Objects(d.ctx, query)
+	for {
+		obj, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			d.errorf("listBucket: unable to list bucket %q: %v", d.bucketName, err)
+			return
+		}
+		if !strings.HasPrefix(obj.Name, dir) || strings.HasSuffix(obj.Name, suf) || obj.Name == dir {
+			continue
+		}
+
+		reader, err := d.bucket.Object(obj.Name).NewReader(d.ctx)
+	  if err != nil {
+	    panic(err)
+	  }
+
+	  originalImage, format, err := image.Decode(reader)
+	  smallImage := resize.Thumbnail(1000, 1000, originalImage, resize.Lanczos3)
+	  buf := new(bytes.Buffer)
+
+	  switch format {
+    case "jpeg", "jpg":
+	  	jpeg.Encode(buf, smallImage, nil)
+    case "png":
+    	png.Encode(buf, smallImage)
+    case "gif":
+    	gif.Encode(buf, smallImage, nil)
+    default:
+    	d.errorf("invalid format")
+    	return
+    }
+
+	  b := buf.Bytes()
+
+		wc := d.bucket.Object(obj.Name + suf).NewWriter(d.ctx)
+		if n, err := wc.Write(b); err != nil {
+			d.errorf("listBucket: unable to list bucket %q: %v", d.bucketName, err)
+			return
+		} else if n != len(b) {
+			d.errorf("listBucket: unable to list bucket %q: %v", d.bucketName, err)
+    	return
+    }
+    if err := wc.Close(); err != nil {
+    	d.errorf("listBucket: unable to list bucket %q: %v", d.bucketName, err)
+			return
+  	}
+	}
 }
 
 // dumpDefaultACL prints out the default object ACL for this bucket.
-func (d *demo) dumpDefaultACL() {
+/*func (d *demo) dumpDefaultACL() {
 	acl, err := d.bucket.ACL().List(d.ctx)
 	if err != nil {
 		d.errorf("defaultACL: unable to list default object ACL for bucket %q: %v", d.bucketName, err)
@@ -419,4 +483,4 @@ func (d *demo) deleteFiles() {
 			return
 		}
 	}
-}
+}*/
